@@ -505,7 +505,7 @@
     color: var(--ink);
   }
   .replay-btn svg { flex: 0 0 auto; transition: transform 0.2s; }
-  .replay-btn.replaying svg { animation: replay-spin 1.6s ease-out; }
+  .replay-btn.replaying svg { animation: replay-spin 2.6s ease-out; }
   @keyframes replay-spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(-360deg); }
@@ -1045,13 +1045,16 @@ function buildCreatureAccessory(type) {
 const DEFAULT_COLOR = '#3d6b3a';
 const DEFAULT_SHADOW = '#284724';
 
+const ACCESSORY_OPTIONS = ['cowboy', 'cat', 'party', 'halo', 'baseball'];
+const initialAccessory = ACCESSORY_OPTIONS[Math.floor(Math.random() * ACCESSORY_OPTIONS.length)];
+
 const state = {
   name: '',
   vertexCountOverride: 0,
   style: 'angular',
   ornament: 4,
   color: DEFAULT_COLOR,
-  accessory: null
+  accessory: initialAccessory
 };
 
 const card = document.getElementById('card');
@@ -1111,7 +1114,7 @@ function animateStroke(pathEl, duration) {
 }
 
 let animTimeouts = [];
-function animateDrawing(duration = 1600) {
+function animateDrawing(duration = 2600) {
   animTimeouts.forEach(t => clearTimeout(t));
   animTimeouts = [];
 
@@ -1361,6 +1364,9 @@ function showToast(msg) {
 }
 
 setColor(DEFAULT_COLOR, DEFAULT_SHADOW);
+document.querySelectorAll('.accessory-btn').forEach(b => {
+  b.classList.toggle('active', b.dataset.value === state.accessory);
+});
 render({ animate: true });
 
 /* ============ Creature ============ */
