@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sigilry — A Personal Sigil</title>
+<meta name="description" content="A personal sigil drawn from your name. Each name yields a unique mark.">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sigilry">
+<meta property="og:description" content="A personal sigil drawn from your name. Each name yields a unique mark.">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Sigilry">
+<meta name="twitter:description" content="A personal sigil drawn from your name. Each name yields a unique mark.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --tilt-strength: 14;
+    --sigil-stroke: 2;
+    --card-radius: 18;
+    --card-bg: #a84566;
+    --card-bg-shadow: #7a2f48;
+
+    --page-bg: #ebe4d8;
+    --paper: #f4eee2;
+    --ink: #2a241d;
+    --ink-soft: #6f6457;
+    --ink-faint: #b3a994;
+    --rule: #d4cab8;
+
+    --mx: 0.5; --my: 0.5; --tx: 0; --ty: 0;
+    --hover: 0; --hover-ease: 0;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    min-height: 100vh;
+    background: var(--page-bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      radial-gradient(circle at 13% 22%, rgba(0,0,0,0.018) 0, transparent 35%),
+      radial-gradient(circle at 78% 64%, rgba(0,0,0,0.022) 0, transparent 40%),
+      radial-gradient(circle at 42% 88%, rgba(0,0,0,0.015) 0, transparent 35%);
+  }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 24px 48px;
+    display: flex; flex-direction: column;
+    gap: 28px;
+  }
+
+  .welcome {
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    color: var(--ink);
+    line-height: 1.9;
+    margin: 0 0 4px;
+  }
+
+  .name-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .name-label {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+
+  .name-input {
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.18s, box-shadow 0.18s;
+  }
+  .name-input::placeholder {
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .name-input:focus {
+    border-color: var(--ink-soft);
+    box-shadow: 0 0 0 3px rgba(42, 36, 29, 0.06);
+  }
+
+  .icon-btn {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--ink-soft);
+    transition: all 0.18s;
+  }
+  .icon-btn:hover {
+    color: var(--ink);
+    border-color: var(--ink-soft);
+    transform: translateY(-1px);
+  }
+  .icon-btn svg { transition: transform 0.4s cubic-bezier(0.4,0,0.2,1); }
+  .icon-btn.spinning svg { transform: rotate(-360deg); }
+
+  .stage {
+    position: relative;
+    perspective: 1600px;
+    perspective-origin: 50% 50%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 0 4px;
+  }
+
+  .card {
+    --w: 480px; --h: 300px;
+    width: var(--w); height: var(--h);
+    position: relative;
+    border-radius: calc(var(--card-radius) * 1px);
+    transform-style: preserve-3d;
+    transform:
+      rotateX(calc(var(--ty) * var(--tilt-strength) * -1deg))
+      rotateY(calc(var(--tx) * var(--tilt-strength) * 1deg));
+    transition: transform 0.18s cubic-bezier(.2,.7,.2,1);
+    cursor: crosshair;
+    will-change: transform;
+  }
+
+  .card-body {
+    position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+    background: var(--card-bg);
+    transition: background 0.45s cubic-bezier(0.4,0,0.2,1);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.08) inset,
+      0 -8px 30px rgba(0,0,0,0.18) inset,
+      0 22px 40px -22px rgba(0,0,0,0.32),
+      0 8px 18px -10px rgba(0,0,0,0.18);
+  }
+
+  .card-body::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 18% 24%, rgba(255,255,255,0.06) 0, transparent 40%),
+      radial-gradient(circle at 82% 78%, rgba(0,0,0,0.10) 0, transparent 45%);
+    pointer-events: none;
+  }
+
+  .layer-sigil {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    transform: translateZ(20px);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .layer-sigil svg {
+    width: auto; height: 78%;
+    max-width: 70%;
+    color: #f6e7c6;
+    shape-rendering: geometricPrecision;
+  }
+
+  .layer-sigil svg path,
+  .layer-sigil svg circle,
+  .layer-sigil svg line,
+  .layer-sigil svg polyline,
+  .layer-sigil svg polygon {
+    stroke: currentColor;
+    fill: none;
+    stroke-width: calc(var(--sigil-stroke) * 1px);
+    stroke-linecap: round; stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .layer-sigil svg .filled { fill: currentColor; stroke: none; }
+
+  .card-meta {
+    position: absolute;
+    color: rgba(255, 240, 220, 0.95);
+    z-index: 3;
+    pointer-events: none;
+    transform: translateZ(8px);
+  }
+  .card-meta.tl { top: 22px; left: 24px; }
+  .card-meta.br { bottom: 22px; right: 24px; text-align: right; }
+
+  .card-meta-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: rgba(255, 240, 220, 0.65);
+    margin-bottom: 4px;
+  }
+
+  .card-meta-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(255, 245, 225, 0.98);
+  }
+
+  .card-meta-seed {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; letter-spacing: 0.12em;
+    color: rgba(255, 245, 225, 0.95);
+  }
+
+  /* === CREATURE === */
+
+  .creature-anchor {
+    position: absolute;
+    left: 16px; bottom: 16px;
+    width: 64px; height: 64px;
+    pointer-events: auto;
+    visibility: hidden;
+  }
+
+  .speech-bubble {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: -8px;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 8px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px) scale(0.92);
+    transform-origin: 40px 100%;
+    transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+    box-shadow: 0 4px 12px rgba(42, 36, 29, 0.12);
+  }
+  .speech-bubble.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 35px;
+    width: 11px; height: 11px;
+    background: var(--paper);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    transform: rotate(45deg);
+  }
+
+  .creature-idle {
+    width: 100%; height: 100%;
+    animation: creature-bob 4.2s ease-in-out infinite;
+    transform-origin: 50% 100%;
+  }
+
+  @keyframes creature-bob {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-3px) scale(1.02); }
+  }
+
+  .creature-pop {
+    width: 100%; height: 100%;
+    transform-origin: 50% 100%;
+  }
+
+  .creature-pop.entering {
+    animation: creature-pop 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes creature-pop {
+    0%   { transform: scale(0) rotate(-18deg); opacity: 0; }
+    35%  { opacity: 1; }
+    60%  { transform: scale(1.12) rotate(7deg); }
+    78%  { transform: scale(0.96) rotate(-2deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+
+  .creature-svg {
+    width: 100%; height: 100%; display: block;
+    overflow: visible;
+  }
+
+  /* sigil-as-body strokes — fixed cream for contrast against any card color */
+  .creature-sigil path,
+  .creature-sigil circle,
+  .creature-sigil line,
+  .creature-sigil polygon {
+    stroke: #f6e7c6;
+    fill: none;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .creature-eye-group {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .creature-eye-group.blinking {
+    animation: creature-blink 0.18s ease-out;
+  }
+  @keyframes creature-blink {
+    0%, 100% { transform: scaleY(1); }
+    50%      { transform: scaleY(0.06); }
+  }
+
+  @media (max-width: 720px) {
+    .creature-anchor { display: none; }
+  }
+
+  /* === SWATCH ROW === */
+
+  .swatch-row {
+    display: flex; gap: 14px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .swatch {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--c);
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.18s;
+    position: relative;
+  }
+  .swatch::after {
+    content: '';
+    position: absolute; inset: -4px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    transition: border-color 0.18s;
+  }
+  .swatch:hover { transform: scale(1.08); }
+  .swatch.active::after { border-color: var(--ink); }
+
+  /* === ACCESSORY ROW === */
+
+  .accessory-row {
+    display: flex; gap: 12px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .accessory-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    cursor: pointer;
+    padding: 5px;
+    transition: all 0.18s;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .accessory-btn::after {
+    content: '';
+    position: absolute; inset: -4px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    transition: border-color 0.18s;
+  }
+  .accessory-btn:hover {
+    transform: scale(1.08);
+    border-color: var(--ink-soft);
+  }
+  .accessory-btn.active::after { border-color: var(--ink); }
+
+  .accessory-btn svg {
+    width: 100%; height: auto;
+    max-height: 100%;
+  }
+
+  .style-row {
+    display: flex; gap: 6px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .style-row button {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    padding: 7px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    border-radius: 6px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .style-row button:hover {
+    color: var(--ink);
+    border-color: var(--ink-soft);
+  }
+  .style-row button.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+
+  .reset-row {
+    display: flex; justify-content: center;
+    margin-top: 2px;
+  }
+  .reset-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.15s;
+  }
+  .reset-btn:hover { color: var(--ink-soft); }
+
+  .decode {
+    margin-top: 12px;
+    padding: 22px 24px 18px;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: var(--paper);
+  }
+
+  .decode-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px;
+    margin-bottom: 18px;
+    transition: margin-bottom 0.25s ease;
+  }
+
+  .decode-toggle {
+    background: transparent; border: none; padding: 0; margin: 0;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    color: inherit; font: inherit;
+  }
+  .decode-toggle .caret {
+    color: var(--ink-soft);
+    transition: transform 0.25s ease, color 0.15s;
+    flex: 0 0 auto;
+  }
+  .decode-toggle:hover .caret { color: var(--ink); }
+  .decode-toggle:hover .decode-title { color: var(--ink); }
+  .decode[data-collapsed="true"] .decode-toggle .caret { transform: rotate(-90deg); }
+
+  .decode-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-soft);
+    transition: color 0.15s;
+  }
+
+  .decode-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .decode-title-group {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+
+  .replay-btn {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    padding: 4px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+    border-radius: 4px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: all 0.15s;
+  }
+  .replay-btn:hover {
+    border-color: var(--ink-soft);
+    color: var(--ink);
+  }
+  .replay-btn svg { flex: 0 0 auto; transition: transform 0.2s; }
+  .replay-btn.replaying svg { animation: replay-spin 1.6s ease-out; }
+  @keyframes replay-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
+  }
+
+  .decode-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 200px;
+    gap: 24px;
+    align-items: center;
+    overflow: hidden;
+    max-height: 600px;
+    opacity: 1;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+  }
+
+  .decode[data-collapsed="true"] .decode-body {
+    max-height: 0; opacity: 0;
+  }
+  .decode[data-collapsed="true"] .decode-header { margin-bottom: 0; }
+
+  @media (max-width: 600px) {
+    .decode-body { grid-template-columns: 1fr; gap: 16px; }
+  }
+
+  .decode-grid {
+    display: flex; flex-wrap: wrap; gap: 4px 8px;
+    justify-content: center; align-content: center;
+  }
+  .decode-grid:empty::before {
+    content: 'inscribe a name to begin';
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 20px;
+  }
+
+  .decode-cell {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px;
+    min-width: 22px;
+    padding: 6px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.18s;
+  }
+  .decode-cell:hover { background: rgba(42, 36, 29, 0.05); }
+  .decode-cell.dup .decode-letter,
+  .decode-cell.dup .decode-index { opacity: 0.45; }
+
+  .decode-letter {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-style: italic;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .decode-line {
+    width: 1px; height: 12px;
+    background: linear-gradient(180deg, rgba(42, 36, 29, 0.35), rgba(42, 36, 29, 0));
+  }
+  .decode-index {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    color: var(--ink-soft);
+    line-height: 1;
+  }
+
+  .decode-cell.active-vertex { background: rgba(168, 69, 102, 0.08); }
+  .decode-cell.active-vertex .decode-index { color: var(--ink); }
+
+  .decode-cell.lit:not(.dup) { background: rgba(42, 36, 29, 0.04); }
+  .decode-cell.lit:not(.dup) .decode-index { color: var(--ink); }
+  .decode-cell.lit:not(.dup) .decode-line {
+    background: linear-gradient(180deg, rgba(42, 36, 29, 0.7), rgba(42, 36, 29, 0));
+  }
+
+  .decode-svg-wrap { display: flex; justify-content: center; align-items: center; }
+  .decode-svg-wrap svg {
+    width: 100%; max-width: 200px;
+    height: auto; aspect-ratio: 1;
+  }
+  .decode-svg-wrap .ring { stroke: var(--ink-faint); fill: none; }
+  .decode-svg-wrap .vertex-dot { fill: var(--ink-soft); stroke: none; transition: fill 0.15s, r 0.15s; }
+  .decode-svg-wrap .vertex-dot.active { fill: var(--ink); r: 4.5; }
+  .decode-svg-wrap .start-mark { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  .decode-svg-wrap .end-mark { stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; }
+  .decode-svg-wrap .path { stroke: var(--ink); fill: none; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.75; }
+  .decode-svg-wrap .label {
+    fill: var(--ink-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    transition: fill 0.15s;
+  }
+  .decode-svg-wrap .label.active { fill: var(--ink); font-weight: 500; }
+
+  .footer-copy {
+    text-align: center;
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 4px 0 0;
+  }
+
+  .toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    border-radius: 6px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 100;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 540px) {
+    main { padding: 36px 16px 32px; gap: 22px; }
+    .card { --w: 100%; --h: 240px; max-width: 380px; }
+    .name-row { grid-template-columns: 1fr auto; row-gap: 8px; }
+    .name-label { grid-column: 1 / -1; }
+    .card-meta.tl { top: 16px; left: 16px; }
+    .card-meta.br { bottom: 16px; right: 16px; }
+    .card-meta-name { font-size: 12px; }
+    .card-meta-seed { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <p class="welcome">WELCOME, VISITOR.</p>
+    <p class="welcome">A SIGIL DRAWN FROM YOUR NAME.</p>
+  </header>
+
+  <div class="name-row">
+    <label for="nameInput" class="name-label">NAME:</label>
+    <input type="text" class="name-input" id="nameInput" placeholder="Your name…" autocomplete="off" spellcheck="false">
+    <button class="icon-btn" id="btnRefresh" type="button" title="Replay">
+      <svg viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M3 8a5 5 0 1 0 1.6-3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M2.5 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <section class="stage">
+    <div class="card" id="card">
+      <div class="card-body">
+        <div class="card-meta tl">
+          <div class="card-meta-label">Visitor</div>
+          <div class="card-meta-name" id="cardName">—</div>
+        </div>
+        <div class="card-meta br">
+          <div class="card-meta-label">No.</div>
+          <div class="card-meta-seed" id="cardSeed">000000</div>
+        </div>
+        <div class="layer-sigil" id="sigilHolder"></div>
+        <div class="creature-anchor" aria-hidden="true">
+          <div class="speech-bubble" id="speechBubble"></div>
+          <div class="creature-pop" id="creature">
+            <div class="creature-idle">
+              <svg class="creature-svg" viewBox="40 40 240 240" xmlns="http://www.w3.org/2000/svg">
+                <g class="creature-sigil" id="creatureBody"></g>
+                <g class="creature-eye-group" id="creatureEye">
+                  <ellipse cx="160" cy="160" rx="33" ry="36" fill="#f4eee2"/>
+                  <g id="creaturePupil">
+                    <circle cx="160" cy="160" r="13" fill="#1d1812"/>
+                    <circle cx="155" cy="155" r="3.5" fill="rgba(255,255,255,0.85)"/>
+                  </g>
+                </g>
+                <g class="creature-accessory" id="creatureAccessory"></g>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="swatch-row" id="swatchRow">
+    <button class="swatch active" data-color="#a84566" data-shadow="#7a2f48" style="--c:#a84566" aria-label="Peony" type="button"></button>
+    <button class="swatch" data-color="#1f6f7a" data-shadow="#144d56" style="--c:#1f6f7a" aria-label="Teal" type="button"></button>
+    <button class="swatch" data-color="#3d6b3a" data-shadow="#284724" style="--c:#3d6b3a" aria-label="Forest" type="button"></button>
+    <button class="swatch" data-color="#c97a3a" data-shadow="#8e5421" style="--c:#c97a3a" aria-label="Ochre" type="button"></button>
+    <button class="swatch" data-color="#3d4a8a" data-shadow="#252e5e" style="--c:#3d4a8a" aria-label="Indigo" type="button"></button>
+    <button class="swatch" data-color="#5b3a6e" data-shadow="#3a2249" style="--c:#5b3a6e" aria-label="Plum" type="button"></button>
+  </div>
+
+  <div class="accessory-row" id="accessoryRow">
+    <button class="accessory-btn" data-value="cowboy" aria-label="Cowboy hat" type="button">
+      <svg viewBox="0 0 24 16" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="12" cy="13" rx="11" ry="2" fill="#7a4a2a"/>
+        <path d="M 6 13 Q 6 4 12 4 Q 18 4 18 13 Z" fill="#7a4a2a"/>
+        <rect x="6" y="11" width="12" height="2" fill="#2a1810"/>
+      </svg>
+    </button>
+    <button class="accessory-btn" data-value="cat" aria-label="Cat ears" type="button">
+      <svg viewBox="0 0 24 18" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="3,16 8,4 13,16" fill="#2a241d"/>
+        <polygon points="11,16 16,4 21,16" fill="#2a241d"/>
+        <polygon points="6,14 8,8 11,14" fill="#f0a8b8"/>
+        <polygon points="13,14 16,8 18,14" fill="#f0a8b8"/>
+      </svg>
+    </button>
+    <button class="accessory-btn" data-value="party" aria-label="Party hat" type="button">
+      <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="5,18 17,18 11,3" fill="#e84a8e"/>
+        <line x1="7" y1="14" x2="15" y2="14" stroke="#fff5d8" stroke-width="1.5"/>
+        <line x1="9" y1="9" x2="13" y2="9" stroke="#fff5d8" stroke-width="1.5"/>
+        <circle cx="11" cy="3" r="2" fill="#ffd966"/>
+      </svg>
+    </button>
+    <button class="accessory-btn" data-value="halo" aria-label="Halo" type="button">
+      <svg viewBox="0 0 24 12" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="12" cy="6" rx="10" ry="3.5" fill="none" stroke="#d4a23a" stroke-width="2.5"/>
+      </svg>
+    </button>
+    <button class="accessory-btn" data-value="baseball" aria-label="Baseball cap" type="button">
+      <svg viewBox="0 0 24 14" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 5 11 Q 5 3 11 3 Q 17 3 17 11 Z" fill="#3070a8"/>
+        <path d="M 10 11 L 22 11 Q 23 13 20 13 L 10 13 Z" fill="#3070a8"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="style-row" data-control="style">
+    <button data-value="angular" class="active" type="button">Angular</button>
+    <button data-value="curved" type="button">Curved</button>
+    <button data-value="mixed" type="button">Mixed</button>
+  </div>
+
+  <div class="reset-row">
+    <button class="reset-btn" id="btnReset" type="button">↻ Reset</button>
+  </div>
+
+  <section class="decode" id="decodePanel" data-collapsed="false">
+    <div class="decode-header">
+      <div class="decode-title-group">
+        <button class="decode-toggle" id="decodeToggle" type="button" aria-expanded="true" aria-controls="decodeBody">
+          <svg class="caret" viewBox="0 0 12 12" width="9" height="9" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="decode-title">Inscribed Path</span>
+        </button>
+        <button class="replay-btn" id="btnReplay" type="button" title="Replay drawing">
+          <svg viewBox="0 0 16 16" width="11" height="11" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 8a5 5 0 1 0 1.6-3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M2.5 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Replay</span>
+        </button>
+      </div>
+      <span class="decode-meta" id="decodeMeta"></span>
+    </div>
+    <div class="decode-body" id="decodeBody">
+      <div class="decode-grid" id="decodeGrid"></div>
+      <div class="decode-svg-wrap" id="decodeSvgWrap"></div>
+    </div>
+  </section>
+
+  <p class="footer-copy">Each name yields a unique sigil.</p>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ Hash + RNG ============ */
+function nameToSeed(name) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ============ Sigil construction data ============ */
+function buildSigilData(name, opts = {}) {
+  const cleaned = (name || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!cleaned) return null;
+  const seed = nameToSeed(cleaned);
+  const rng = mulberry32(seed);
+  const autoVertex = 6 + Math.floor(rng() * 6);
+  const vertexCount = (opts.vertexCountOverride && opts.vertexCountOverride > 0)
+    ? opts.vertexCountOverride : autoVertex;
+  const cx = 160, cy = 160, radius = 110;
+  const startAngle = rng() * Math.PI * 2;
+  const vertices = [];
+  for (let i = 0; i < vertexCount; i++) {
+    const a = startAngle + (i / vertexCount) * Math.PI * 2 - Math.PI / 2;
+    vertices.push({
+      x: cx + Math.cos(a) * radius,
+      y: cy + Math.sin(a) * radius,
+      angle: a, idx: i
+    });
+  }
+  const letterMap = [...cleaned].map((ch, i) => ({
+    letter: ch, position: i,
+    vertexIndex: (ch.charCodeAt(0) - 97) % vertexCount,
+    isDup: false
+  }));
+  for (let i = 1; i < letterMap.length; i++) {
+    if (letterMap[i].vertexIndex === letterMap[i - 1].vertexIndex) {
+      letterMap[i].isDup = true;
+    }
+  }
+  const filteredIndices = letterMap
+    .filter((m, i) => i === 0 || m.vertexIndex !== letterMap[i - 1].vertexIndex)
+    .map(m => m.vertexIndex);
+  const pathPts = filteredIndices.map(i => vertices[i]);
+
+  return { cleaned, seed, rng, vertexCount, vertices, pathPts, indices: filteredIndices, letterMap, cx, cy, radius };
+}
+
+/* ============ Full sigil SVG (card) ============ */
+function buildSigilSVG(data, opts = {}) {
+  if (!data) return `<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg"></svg>`;
+  const { vertices, pathPts, vertexCount, cx, cy, radius, seed, rng } = data;
+  const ornament = opts.ornament == null ? 4 : opts.ornament;
+  const style = opts.style || 'angular';
+  const parts = [];
+
+  if (ornament >= 1) parts.push(`<circle cx="${cx}" cy="${cy}" r="${radius + 12}" stroke-opacity="0.45"/>`);
+  if (ornament >= 2) {
+    vertices.forEach(v => {
+      parts.push(`<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="2.5" class="filled"/>`);
+    });
+  }
+  if (ornament >= 3) {
+    const innerR = radius * (0.32 + rng() * 0.18);
+    const innerN = 3 + Math.floor(rng() * 4);
+    const innerStart = rng() * Math.PI * 2;
+    const pts = [];
+    for (let i = 0; i < innerN; i++) {
+      const a = innerStart + (i / innerN) * Math.PI * 2;
+      pts.push(`${(cx + Math.cos(a) * innerR).toFixed(2)},${(cy + Math.sin(a) * innerR).toFixed(2)}`);
+    }
+    parts.push(`<polygon points="${pts.join(' ')}" stroke-opacity="0.7"/>`);
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="2" class="filled"/>`);
+  }
+  if (ornament >= 4) {
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="${radius + 26}" stroke-opacity="0.2"/>`);
+    const ticks = vertexCount * 2;
+    for (let i = 0; i < ticks; i++) {
+      const a = (i / ticks) * Math.PI * 2;
+      const r1 = radius + 20, r2 = radius + 32;
+      parts.push(`<line x1="${(cx + Math.cos(a) * r1).toFixed(2)}" y1="${(cy + Math.sin(a) * r1).toFixed(2)}" x2="${(cx + Math.cos(a) * r2).toFixed(2)}" y2="${(cy + Math.sin(a) * r2).toFixed(2)}" stroke-opacity="0.5"/>`);
+    }
+  }
+  if (ornament >= 5) {
+    const diamN = 2 + Math.floor(rng() * 3);
+    for (let i = 0; i < diamN; i++) {
+      const a = rng() * Math.PI;
+      const x1 = cx + Math.cos(a) * radius, y1 = cy + Math.sin(a) * radius;
+      const x2 = cx - Math.cos(a) * radius, y2 = cy - Math.sin(a) * radius;
+      parts.push(`<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke-opacity="0.18"/>`);
+    }
+  }
+
+  let pathD = '';
+  if (pathPts.length > 0) {
+    pathD = `M ${pathPts[0].x.toFixed(2)} ${pathPts[0].y.toFixed(2)}`;
+    for (let i = 1; i < pathPts.length; i++) {
+      const p = pathPts[i], prev = pathPts[i - 1];
+      if (style === 'angular') {
+        pathD += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+      } else if (style === 'curved') {
+        const mx = (prev.x + p.x) / 2 + (cx - (prev.x + p.x) / 2) * 0.35;
+        const my = (prev.y + p.y) / 2 + (cy - (prev.y + p.y) / 2) * 0.35;
+        pathD += ` Q ${mx.toFixed(2)} ${my.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+      } else {
+        if ((i + (seed & 7)) % 2 === 0) {
+          pathD += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+        } else {
+          const mx = (prev.x + p.x) / 2 + (cx - (prev.x + p.x) / 2) * 0.5;
+          const my = (prev.y + p.y) / 2 + (cy - (prev.y + p.y) / 2) * 0.5;
+          pathD += ` Q ${mx.toFixed(2)} ${my.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+        }
+      }
+    }
+  }
+
+  if (pathPts.length > 0) {
+    const start = pathPts[0];
+    parts.push(`<circle cx="${start.x.toFixed(2)}" cy="${start.y.toFixed(2)}" r="6" stroke-opacity="0.9"/>`);
+  }
+  if (pathPts.length > 1) {
+    const end = pathPts[pathPts.length - 1];
+    const prev = pathPts[pathPts.length - 2];
+    const dx = end.x - prev.x, dy = end.y - prev.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len, py = dx / len;
+    const barLen = 9;
+    parts.push(`<line x1="${(end.x + px * barLen).toFixed(2)}" y1="${(end.y + py * barLen).toFixed(2)}" x2="${(end.x - px * barLen).toFixed(2)}" y2="${(end.y - py * barLen).toFixed(2)}" stroke-opacity="0.9"/>`);
+  }
+
+  parts.push(`<path d="${pathD}" />`);
+  return `<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">${parts.join('')}</svg>`;
+}
+
+/* ============ Decode schematic SVG ============ */
+function buildDecodeSVG(data) {
+  if (!data) return '';
+  const { vertices, pathPts, cx, cy, radius } = data;
+  const parts = [];
+
+  parts.push(`<circle class="ring" cx="${cx}" cy="${cy}" r="${radius}"/>`);
+
+  if (pathPts.length > 0) {
+    let d = `M ${pathPts[0].x.toFixed(2)} ${pathPts[0].y.toFixed(2)}`;
+    for (let i = 1; i < pathPts.length; i++) {
+      d += ` L ${pathPts[i].x.toFixed(2)} ${pathPts[i].y.toFixed(2)}`;
+    }
+    parts.push(`<path class="path" d="${d}"/>`);
+  }
+
+  vertices.forEach((v, i) => {
+    parts.push(`<circle class="vertex-dot" data-idx="${i}" cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="3"/>`);
+    const labelR = radius + 18;
+    const lx = cx + Math.cos(v.angle) * labelR;
+    const ly = cy + Math.sin(v.angle) * labelR;
+    parts.push(`<text class="label" data-idx="${i}" x="${lx.toFixed(2)}" y="${ly.toFixed(2)}" text-anchor="middle" dominant-baseline="middle">${i}</text>`);
+  });
+
+  if (pathPts.length > 0) {
+    const start = pathPts[0];
+    parts.push(`<circle class="start-mark" cx="${start.x.toFixed(2)}" cy="${start.y.toFixed(2)}" r="6"/>`);
+  }
+  if (pathPts.length > 1) {
+    const end = pathPts[pathPts.length - 1];
+    const prev = pathPts[pathPts.length - 2];
+    const dx = end.x - prev.x, dy = end.y - prev.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len, py = dx / len;
+    const barLen = 7;
+    parts.push(`<line class="end-mark" x1="${(end.x + px * barLen).toFixed(2)}" y1="${(end.y + py * barLen).toFixed(2)}" x2="${(end.x - px * barLen).toFixed(2)}" y2="${(end.y - py * barLen).toFixed(2)}"/>`);
+  }
+
+  return `<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">${parts.join('')}</svg>`;
+}
+
+function buildDecodeGridHTML(data) {
+  if (!data) return '';
+  return data.letterMap.map(({ letter, vertexIndex, isDup, position }) => `
+    <div class="decode-cell ${isDup ? 'dup' : ''}" data-vertex="${vertexIndex}" data-position="${position}" title="'${letter.toUpperCase()}' \u2192 vertex ${vertexIndex}${isDup ? ' (skipped \u2014 same as previous)' : ''}">
+      <div class="decode-letter">${letter.toUpperCase()}</div>
+      <div class="decode-line"></div>
+      <div class="decode-index">${vertexIndex}</div>
+    </div>
+  `).join('');
+}
+
+/* ============ Creature body (sigil-shaped) ============ */
+function buildCreatureBody(data, opts = {}) {
+  if (!data) return '';
+  const { pathPts, cx, cy, seed } = data;
+  const style = opts.style || 'angular';
+  if (pathPts.length === 0) return '';
+
+  let pathD = `M ${pathPts[0].x.toFixed(2)} ${pathPts[0].y.toFixed(2)}`;
+  for (let i = 1; i < pathPts.length; i++) {
+    const p = pathPts[i], prev = pathPts[i - 1];
+    if (style === 'angular') {
+      pathD += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    } else if (style === 'curved') {
+      const mx = (prev.x + p.x) / 2 + (cx - (prev.x + p.x) / 2) * 0.35;
+      const my = (prev.y + p.y) / 2 + (cy - (prev.y + p.y) / 2) * 0.35;
+      pathD += ` Q ${mx.toFixed(2)} ${my.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    } else {
+      if ((i + (seed & 7)) % 2 === 0) {
+        pathD += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+      } else {
+        const mx = (prev.x + p.x) / 2 + (cx - (prev.x + p.x) / 2) * 0.5;
+        const my = (prev.y + p.y) / 2 + (cy - (prev.y + p.y) / 2) * 0.5;
+        pathD += ` Q ${mx.toFixed(2)} ${my.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+      }
+    }
+  }
+  return `<path d="${pathD}" />`;
+}
+
+/* ============ Creature accessories ============ */
+function buildCreatureAccessory(type) {
+  switch (type) {
+    case 'cowboy':
+      return `
+        <ellipse cx="160" cy="118" rx="46" ry="8" fill="#7a4a2a"/>
+        <path d="M 138 118 Q 138 82 160 82 Q 182 82 182 118 Z" fill="#7a4a2a"/>
+        <rect x="138" y="110" width="44" height="4" fill="#2a1810"/>
+        <ellipse cx="160" cy="124" rx="46" ry="2" fill="rgba(0,0,0,0.18)"/>
+      `;
+    case 'cat':
+      return `
+        <polygon points="116,130 130,70 150,128" fill="#f6e7c6" stroke="#1d1812" stroke-width="3" stroke-linejoin="round"/>
+        <polygon points="204,130 190,70 170,128" fill="#f6e7c6" stroke="#1d1812" stroke-width="3" stroke-linejoin="round"/>
+        <polygon points="126,118 132,90 142,120" fill="#f0a8b8"/>
+        <polygon points="194,118 188,90 178,120" fill="#f0a8b8"/>
+      `;
+    case 'party':
+      return `
+        <polygon points="132,130 188,130 160,52" fill="#e84a8e" stroke="#9c3060" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="144" y1="106" x2="176" y2="106" stroke="#fff5d8" stroke-width="2.5"/>
+        <line x1="151" y1="83" x2="169" y2="83" stroke="#fff5d8" stroke-width="2.5"/>
+        <circle cx="160" cy="48" r="7" fill="#ffd966" stroke="#c08a18" stroke-width="1.5"/>
+      `;
+    case 'halo':
+      return `
+        <ellipse cx="160" cy="76" rx="44" ry="9" fill="none" stroke="#d4a23a" stroke-width="3.5"/>
+        <ellipse cx="160" cy="76" rx="44" ry="9" fill="none" stroke="#fff5b8" stroke-width="1.2"/>
+      `;
+    case 'baseball':
+      return `
+        <path d="M 130 116 Q 130 78 160 78 Q 190 78 190 116 Z" fill="#3070a8" stroke="#1d4a78" stroke-width="2"/>
+        <path d="M 158 114 L 222 114 Q 224 121 217 122 L 158 122 Z" fill="#3070a8" stroke="#1d4a78" stroke-width="2"/>
+        <circle cx="160" cy="78" r="2.5" fill="#1d4a78"/>
+      `;
+    default:
+      return '';
+  }
+}
+
+/* ============ State ============ */
+const DEFAULT_COLOR = '#a84566';
+const DEFAULT_SHADOW = '#7a2f48';
+
+const state = {
+  name: 'Chuck Lamar',
+  vertexCountOverride: 0,
+  style: 'angular',
+  ornament: 4,
+  color: DEFAULT_COLOR,
+  accessory: null
+};
+
+const card = document.getElementById('card');
+const sigilHolder = document.getElementById('sigilHolder');
+const cardName = document.getElementById('cardName');
+const cardSeed = document.getElementById('cardSeed');
+const nameInput = document.getElementById('nameInput');
+const toast = document.getElementById('toast');
+const decodeGrid = document.getElementById('decodeGrid');
+const decodeSvgWrap = document.getElementById('decodeSvgWrap');
+const decodeMeta = document.getElementById('decodeMeta');
+const creatureBody = document.getElementById('creatureBody');
+
+/* ============ Render ============ */
+function render(opts = {}) {
+  const data = buildSigilData(state.name, { vertexCountOverride: state.vertexCountOverride });
+  sigilHolder.innerHTML = buildSigilSVG(data, { style: state.style, ornament: state.ornament });
+  cardName.textContent = (state.name || '\u2014').toUpperCase();
+  if (creatureBody) {
+    creatureBody.innerHTML = buildCreatureBody(data, { style: state.style });
+  }
+  const accessoryEl = document.getElementById('creatureAccessory');
+  if (accessoryEl) {
+    accessoryEl.innerHTML = buildCreatureAccessory(state.accessory);
+  }
+
+  if (data) {
+    const seedHex = data.seed.toString(16).padStart(8, '0').slice(-6).toUpperCase();
+    cardSeed.textContent = seedHex;
+    decodeMeta.textContent = `${data.cleaned.length} letter${data.cleaned.length === 1 ? '' : 's'} \u00b7 ${data.vertexCount} nodes`;
+    decodeGrid.innerHTML = buildDecodeGridHTML(data);
+    decodeSvgWrap.innerHTML = buildDecodeSVG(data);
+  } else {
+    cardSeed.textContent = '\u2014';
+    decodeMeta.textContent = '';
+    decodeGrid.innerHTML = '';
+    decodeSvgWrap.innerHTML = '';
+  }
+
+  if (opts.animate) {
+    requestAnimationFrame(() => animateDrawing());
+  }
+}
+
+/* ============ Drawing animation ============ */
+function animateStroke(pathEl, duration) {
+  if (!pathEl) return;
+  let len;
+  try { len = pathEl.getTotalLength(); } catch { return; }
+  if (!len || len === 0) return;
+  pathEl.style.strokeDasharray = len;
+  pathEl.style.strokeDashoffset = len;
+  pathEl.style.transition = 'none';
+  void pathEl.getBoundingClientRect();
+  pathEl.style.transition = `stroke-dashoffset ${duration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+  pathEl.style.strokeDashoffset = '0';
+}
+
+let animTimeouts = [];
+function animateDrawing(duration = 1600) {
+  animTimeouts.forEach(t => clearTimeout(t));
+  animTimeouts = [];
+
+  const cardPath = sigilHolder.querySelector('path');
+  animateStroke(cardPath, duration);
+
+  const decodePath = decodeSvgWrap.querySelector('path.path');
+  animateStroke(decodePath, duration);
+
+  if (creatureBody) {
+    const creaturePath = creatureBody.querySelector('path');
+    animateStroke(creaturePath, duration);
+  }
+
+  const cells = [...decodeGrid.querySelectorAll('.decode-cell')];
+  cells.forEach(c => c.classList.remove('lit'));
+  const visibleSteps = cells.filter(c => !c.classList.contains('dup'));
+  if (visibleSteps.length === 0) return;
+
+  visibleSteps.forEach((cell, i) => {
+    const fraction = (i + 1) / visibleSteps.length;
+    animTimeouts.push(setTimeout(() => cell.classList.add('lit'), fraction * duration));
+  });
+
+  cells.forEach((cell, idx) => {
+    if (!cell.classList.contains('dup')) return;
+    let prior = idx - 1;
+    while (prior >= 0 && cells[prior].classList.contains('dup')) prior--;
+    if (prior < 0) return;
+    const visiblePos = visibleSteps.indexOf(cells[prior]);
+    if (visiblePos < 0) return;
+    const fraction = (visiblePos + 1) / visibleSteps.length;
+    animTimeouts.push(setTimeout(() => cell.classList.add('lit'), fraction * duration + 50));
+  });
+}
+
+/* ============ Mouse tracking + tilt ============ */
+let targetMx = 0.5, targetMy = 0.5, targetTx = 0, targetTy = 0;
+let curMx = 0.5, curMy = 0.5, curTx = 0, curTy = 0;
+let targetHover = 0, curHover = 0;
+
+card.addEventListener('mousemove', (e) => {
+  const r = card.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  const y = (e.clientY - r.top) / r.height;
+  targetMx = x; targetMy = y;
+  targetTx = (x - 0.5) * 2; targetTy = (y - 0.5) * 2;
+  targetHover = 1;
+});
+card.addEventListener('mouseenter', () => { targetHover = 1; });
+card.addEventListener('mouseleave', () => {
+  targetHover = 0;
+  targetTx = 0; targetTy = 0;
+  targetMx = 0.5; targetMy = 0.5;
+});
+
+function tick() {
+  const ease = 0.18;
+  curMx += (targetMx - curMx) * ease;
+  curMy += (targetMy - curMy) * ease;
+  curTx += (targetTx - curTx) * ease;
+  curTy += (targetTy - curTy) * ease;
+  curHover += (targetHover - curHover) * 0.1;
+
+  document.documentElement.style.setProperty('--mx', curMx.toFixed(4));
+  document.documentElement.style.setProperty('--my', curMy.toFixed(4));
+  document.documentElement.style.setProperty('--tx', curTx.toFixed(4));
+  document.documentElement.style.setProperty('--ty', curTy.toFixed(4));
+  document.documentElement.style.setProperty('--hover', targetHover);
+  document.documentElement.style.setProperty('--hover-ease', curHover.toFixed(4));
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ============ Controls ============ */
+
+function setColor(hex, shadow) {
+  state.color = hex;
+  document.documentElement.style.setProperty('--card-bg', hex);
+  document.documentElement.style.setProperty('--card-bg-shadow', shadow || hex);
+}
+
+document.querySelectorAll('.swatch').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    setColor(btn.dataset.color, btn.dataset.shadow);
+  });
+});
+
+document.querySelectorAll('.style-row[data-control] button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.style-row[data-control] button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.style = btn.dataset.value;
+    render({ animate: true });
+  });
+});
+
+document.querySelectorAll('.accessory-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const value = btn.dataset.value;
+    if (state.accessory === value) {
+      // toggle off
+      state.accessory = null;
+      btn.classList.remove('active');
+    } else {
+      state.accessory = value;
+      document.querySelectorAll('.accessory-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+    const accessoryEl = document.getElementById('creatureAccessory');
+    if (accessoryEl) accessoryEl.innerHTML = buildCreatureAccessory(state.accessory);
+  });
+});
+
+nameInput.value = state.name;
+let nameDebounce;
+nameInput.addEventListener('input', () => {
+  clearTimeout(nameDebounce);
+  nameDebounce = setTimeout(() => {
+    state.name = nameInput.value.trim();
+    render({ animate: true });
+    if (typeof popCreature === 'function') popCreature();
+  }, 180);
+});
+
+const btnRefresh = document.getElementById('btnRefresh');
+btnRefresh.addEventListener('click', () => {
+  btnRefresh.classList.remove('spinning');
+  void btnRefresh.offsetWidth;
+  btnRefresh.classList.add('spinning');
+  animateDrawing();
+});
+
+/* ============ Decode interactivity ============ */
+
+function setActiveVertex(vIdx) {
+  decodeGrid.querySelectorAll('.decode-cell').forEach(c => {
+    c.classList.toggle('active-vertex', vIdx != null && c.dataset.vertex === vIdx);
+  });
+  decodeSvgWrap.querySelectorAll('.vertex-dot, .label').forEach(el => {
+    el.classList.toggle('active', vIdx != null && el.getAttribute('data-idx') === vIdx);
+  });
+}
+
+decodeGrid.addEventListener('mouseover', (e) => {
+  const cell = e.target.closest('.decode-cell');
+  if (!cell) return;
+  setActiveVertex(cell.dataset.vertex);
+});
+decodeGrid.addEventListener('mouseleave', () => setActiveVertex(null));
+
+decodeSvgWrap.addEventListener('mouseover', (e) => {
+  const target = e.target.closest('[data-idx]');
+  if (!target) return;
+  setActiveVertex(target.getAttribute('data-idx'));
+});
+decodeSvgWrap.addEventListener('mouseleave', () => setActiveVertex(null));
+
+const decodePanel = document.getElementById('decodePanel');
+const decodeToggle = document.getElementById('decodeToggle');
+function setDecodeCollapsed(collapsed) {
+  decodePanel.dataset.collapsed = String(collapsed);
+  decodeToggle.setAttribute('aria-expanded', String(!collapsed));
+}
+decodeToggle.addEventListener('click', () => {
+  const isCollapsed = decodePanel.dataset.collapsed === 'true';
+  setDecodeCollapsed(!isCollapsed);
+});
+
+const btnReplay = document.getElementById('btnReplay');
+btnReplay.addEventListener('click', () => {
+  const wasCollapsed = decodePanel.dataset.collapsed === 'true';
+  if (wasCollapsed) setDecodeCollapsed(false);
+  btnReplay.classList.remove('replaying');
+  void btnReplay.offsetWidth;
+  btnReplay.classList.add('replaying');
+  setTimeout(() => animateDrawing(), wasCollapsed ? 280 : 0);
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  state.style = 'angular';
+  document.querySelectorAll('.style-row[data-control] button').forEach(b => {
+    b.classList.toggle('active', b.dataset.value === 'angular');
+  });
+  setColor(DEFAULT_COLOR, DEFAULT_SHADOW);
+  document.querySelectorAll('.swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.color === DEFAULT_COLOR);
+  });
+  state.accessory = null;
+  document.querySelectorAll('.accessory-btn').forEach(b => b.classList.remove('active'));
+  render({ animate: true });
+  if (typeof popCreature === 'function') popCreature();
+  showToast('Reset');
+});
+
+let toastTimer;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+setColor(DEFAULT_COLOR, DEFAULT_SHADOW);
+render({ animate: true });
+
+/* ============ Creature ============ */
+
+const creatureEl = document.getElementById('creature');
+const creatureAnchor = document.querySelector('.creature-anchor');
+const creatureEye = document.getElementById('creatureEye');
+const creaturePupil = document.getElementById('creaturePupil');
+
+function popCreature() {
+  if (!creatureEl) return;
+  creatureEl.classList.remove('entering');
+  void creatureEl.offsetWidth;
+  creatureEl.classList.add('entering');
+}
+
+/* Pupil eye-tracking with eased target/current */
+let pupilTargetX = 0, pupilTargetY = 0;
+let pupilCurX = 0, pupilCurY = 0;
+let creatureCenter = { x: 0, y: 0 };
+
+function updateCreatureCenter() {
+  if (!creatureAnchor) return;
+  const rect = creatureAnchor.getBoundingClientRect();
+  creatureCenter.x = rect.left + rect.width / 2;
+  creatureCenter.y = rect.top + rect.height / 2;
+}
+updateCreatureCenter();
+window.addEventListener('resize', updateCreatureCenter);
+window.addEventListener('scroll', updateCreatureCenter, { passive: true });
+
+window.addEventListener('mousemove', (e) => {
+  const dx = e.clientX - creatureCenter.x;
+  const dy = e.clientY - creatureCenter.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 0.001) { pupilTargetX = 0; pupilTargetY = 0; return; }
+  // saturate offset at large cursor distances
+  const saturate = Math.min(1, dist / 220);
+  const maxOffset = 12;
+  pupilTargetX = (dx / dist) * maxOffset * saturate;
+  pupilTargetY = (dy / dist) * maxOffset * saturate;
+});
+
+function tickPupil() {
+  pupilCurX += (pupilTargetX - pupilCurX) * 0.18;
+  pupilCurY += (pupilTargetY - pupilCurY) * 0.18;
+  if (creaturePupil) {
+    creaturePupil.setAttribute('transform', `translate(${pupilCurX.toFixed(2)}, ${pupilCurY.toFixed(2)})`);
+  }
+  requestAnimationFrame(tickPupil);
+}
+requestAnimationFrame(tickPupil);
+
+/* Blink scheduler — random delays between 3 and 7 seconds */
+function scheduleBlink() {
+  const delay = 3000 + Math.random() * 4000;
+  setTimeout(() => {
+    if (creatureEye) {
+      creatureEye.classList.remove('blinking');
+      void creatureEye.offsetWidth;
+      creatureEye.classList.add('blinking');
+      setTimeout(() => creatureEye.classList.remove('blinking'), 200);
+    }
+    scheduleBlink();
+  }, delay);
+}
+scheduleBlink();
+
+/* Speech bubble */
+const SPEECH_LINES = [
+  'hey there',
+  'nice to meet you',
+  'hi friend',
+  'i see you',
+  '*squints*',
+  'welcome',
+  'boop?',
+  'pleased to meet you',
+  'mm-hmm',
+  'greetings'
+];
+let lastSpeechIdx = -1;
+function pickSpeech() {
+  if (SPEECH_LINES.length <= 1) return SPEECH_LINES[0] || '';
+  let idx;
+  do { idx = Math.floor(Math.random() * SPEECH_LINES.length); }
+  while (idx === lastSpeechIdx);
+  lastSpeechIdx = idx;
+  return SPEECH_LINES[idx];
+}
+
+const speechBubble = document.getElementById('speechBubble');
+
+if (creatureAnchor && speechBubble) {
+  creatureAnchor.addEventListener('mouseenter', () => {
+    speechBubble.textContent = pickSpeech();
+    speechBubble.classList.add('show');
+  });
+  creatureAnchor.addEventListener('mouseleave', () => {
+    speechBubble.classList.remove('show');
+  });
+}
+
+/* Bootstrap creature: show + pop in */
+setTimeout(() => {
+  if (creatureAnchor) creatureAnchor.style.visibility = 'visible';
+  popCreature();
+  setTimeout(updateCreatureCenter, 750);
+}, 200);
+</script>
+
+</body>
+</html>
