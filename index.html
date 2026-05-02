@@ -334,9 +334,7 @@
     50%      { transform: scaleY(0.06); }
   }
 
-  @media (max-width: 720px) {
-    .creature-anchor { display: none; }
-  }
+  /* === END CREATURE === */
 
   /* === SWATCH ROW === */
 
@@ -1154,8 +1152,11 @@ function animateDrawing(duration = 1600) {
 let targetMx = 0.5, targetMy = 0.5, targetTx = 0, targetTy = 0;
 let curMx = 0.5, curMy = 0.5, curTx = 0, curTy = 0;
 let targetHover = 0, curHover = 0;
+let orientationActive = false;
+let baseGamma = null, baseBeta = null;
 
 card.addEventListener('mousemove', (e) => {
+  if (orientationActive) return; // device tilt takes precedence on touch devices
   const r = card.getBoundingClientRect();
   const x = (e.clientX - r.left) / r.width;
   const y = (e.clientY - r.top) / r.height;
@@ -1163,12 +1164,52 @@ card.addEventListener('mousemove', (e) => {
   targetTx = (x - 0.5) * 2; targetTy = (y - 0.5) * 2;
   targetHover = 1;
 });
-card.addEventListener('mouseenter', () => { targetHover = 1; });
+card.addEventListener('mouseenter', () => { if (!orientationActive) targetHover = 1; });
 card.addEventListener('mouseleave', () => {
+  if (orientationActive) return;
   targetHover = 0;
   targetTx = 0; targetTy = 0;
   targetMx = 0.5; targetMy = 0.5;
 });
+
+/* Device orientation — phone tilt drives card rotation */
+function handleOrientation(e) {
+  if (e.gamma == null || e.beta == null) return;
+  // first reading sets the rest pose so the card sits flat in the user's natural holding angle
+  if (baseGamma == null) {
+    baseGamma = e.gamma;
+    baseBeta = e.beta;
+  }
+  const RANGE = 22;
+  const dG = Math.max(-RANGE, Math.min(RANGE, e.gamma - baseGamma));
+  const dB = Math.max(-RANGE, Math.min(RANGE, e.beta - baseBeta));
+  targetTx = dG / RANGE;
+  targetTy = dB / RANGE;
+  targetHover = 1;
+  orientationActive = true;
+}
+
+function enableOrientation() {
+  if (orientationActive) return;
+  // iOS 13+ requires explicit permission inside a user gesture
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then((response) => {
+      if (response === 'granted') {
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+    }).catch(() => {});
+  } else if ('DeviceOrientationEvent' in window) {
+    window.addEventListener('deviceorientation', handleOrientation);
+  }
+}
+
+// On non-iOS touch devices, register the listener immediately on first touch.
+// On iOS, the user has to tap the card once to grant permission.
+const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+if (isTouch) {
+  card.addEventListener('touchstart', enableOrientation, { once: false, passive: true });
+}
 
 function tick() {
   const ease = 0.18;
@@ -1414,13 +1455,23 @@ function pickSpeech() {
 const speechBubble = document.getElementById('speechBubble');
 
 if (creatureAnchor && speechBubble) {
-  creatureAnchor.addEventListener('mouseenter', () => {
+  let bubbleTimer;
+  function showBubble() {
     speechBubble.textContent = pickSpeech();
     speechBubble.classList.add('show');
-  });
-  creatureAnchor.addEventListener('mouseleave', () => {
+    clearTimeout(bubbleTimer);
+  }
+  function hideBubble() {
     speechBubble.classList.remove('show');
-  });
+  }
+  creatureAnchor.addEventListener('mouseenter', showBubble);
+  creatureAnchor.addEventListener('mouseleave', hideBubble);
+  // Tap support for touch devices
+  creatureAnchor.addEventListener('touchstart', (e) => {
+    showBubble();
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(hideBubble, 2200);
+  }, { passive: true });
 }
 
 /* Bootstrap creature: show + pop in */
