@@ -656,6 +656,20 @@
   }
   .s3d-layer.grace-trail .m3-trail { display: block; }
   .s3d-layer.grace-gold .m3-bead { fill: #d4a23a !important; }
+  /* the drop forms: held black for an instant, then it takes the ink */
+  .m3-bead.m3-forming { fill: #1d1812 !important; transition: none !important; }
+  .m3-splash {
+    fill: none;
+    stroke: var(--sigil-ink, var(--cream));
+    stroke-width: 2.5;
+    transform-box: fill-box; transform-origin: center;
+    animation: m3-splash 0.85s var(--ease-paper) forwards;
+    pointer-events: none;
+  }
+  @keyframes m3-splash {
+    0%   { transform: scale(0.3); opacity: 0.9; }
+    100% { transform: scale(4.6); opacity: 0; }
+  }
   .lb-card .m3-bead { fill: var(--lbi, var(--cream)) !important; }
   .lb-card .m3-trail { fill: var(--lbi, var(--cream)) !important; }
 
@@ -2220,6 +2234,22 @@ function makeMark3D(host, hitEl, opts = {}) {
     render();
   }
 
+  /* the drop forms in place: a splash where it sits, and the ink takes
+     its colour — black → the chosen hue. No second dot, no re-trace. */
+  function birth() {
+    if (!svgEl || !beadEl) return;
+    beadEl.classList.add('m3-forming');            // instant black, no transition
+    void beadEl.getBoundingClientRect();
+    requestAnimationFrame(() => beadEl.classList.remove('m3-forming')); // → ink, 0.9s
+    const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    ring.setAttribute('class', 'm3-splash');
+    ring.setAttribute('cx', beadEl.getAttribute('cx') || 160);
+    ring.setAttribute('cy', beadEl.getAttribute('cy') || 160);
+    ring.setAttribute('r', '8');
+    svgEl.appendChild(ring);
+    setTimeout(() => ring.remove(), 900);
+  }
+
   /* grab it */
   if (hitEl) {
     hitEl.style.touchAction = 'pan-y';
@@ -2282,7 +2312,7 @@ function makeMark3D(host, hitEl, opts = {}) {
   }
   requestAnimationFrame(frame);
 
-  return { setData, replay, beadPoint, get dragging() { return dragging; } };
+  return { setData, replay, birth, beadPoint, get dragging() { return dragging; } };
 }
 makeMark3D.dragging = false;
 
@@ -3671,25 +3701,21 @@ const Phases = (() => {
           document.body.dataset.phase = 'presentation';
           $('presTitle').textContent = 'YOUR MARK';
           renderPresentation({ animate: false });
+          // hand the voice to the card's own heart the instant the card
+          // shows — the watching drop vanishes rather than gliding in,
+          // so there's never a second dot on screen
+          Creature.handoff(() => cardMark.beadPoint());
         },
         complete: () => {
-          // the drop lands on the card, takes the ink's color, and gives
-          // itself to the mark: one character, one sigil
-          Creature.emerge();
-          Creature.setOnPaper(false);           // black → chosen ink as it glides
-          Creature.dock($('cardHeart'), 40);
-          setTimeout(() => {
-            Creature.splash();                  // ink meets card
-            setTimeout(() => {
-              Creature.handoff(() => cardMark.beadPoint());
-              cardMark.replay(1700);            // the line flows from the drop
-              if (data.indices && data.indices.length) {
-                const v0 = data.indices[0], v1 = data.indices[1] != null ? data.indices[1] : v0;
-                Audio2.note(data, v0 + 5, { gain: 0.07, dur: 0.5 });
-                setTimeout(() => Audio2.note(data, v1 + 5, { gain: 0.07, dur: 0.6 }), 180);
-              }
-            }, 480);
-          }, 900);
+          // ONE dot: the mark's own heart, already on the card. It forms
+          // here — a splash where it sits, black → the chosen ink — with no
+          // second drop flying in and no re-trace of the line.
+          cardMark.birth();
+          if (data.indices && data.indices.length) {
+            const v0 = data.indices[0], v1 = data.indices[1] != null ? data.indices[1] : v0;
+            Audio2.note(data, v0 + 5, { gain: 0.07, dur: 0.5 });
+            setTimeout(() => Audio2.note(data, v1 + 5, { gain: 0.07, dur: 0.6 }), 180);
+          }
           Creature.setHoverPool(knewName ? 'idleReturning' : 'presenting');
           // your mark presses into the page behind everything
           PaperMarks.setWatermark(data, App.style);
